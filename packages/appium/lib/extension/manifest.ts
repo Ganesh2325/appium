@@ -1,3 +1,4 @@
+import {realpath} from 'node:fs/promises';
 import path from 'node:path';
 
 import {env, fs, util} from '@appium/support';
@@ -187,38 +188,56 @@ export class Manifest {
   }
 
   /**
-   * Scans `APPIUM_HOME` (root and `node_modules`) for Appium extension packages and merges them into the manifest.
+   * Scans for Appium extension packages and merges them into the manifest.
    *
-   * @param hasAppiumDependency - When true and the root `package.json` depends on Appium, matching extensions use the `"dev"` install type
+   * Checks the project `package.json` and `$APPIUM_HOME/node_modules`. When the project depends on
+   * Appium, also resolves packages declared in that `package.json`, including copies hoisted into an
+   * ancestor `node_modules` (npm/Yarn/pnpm workspaces).
+   *
+   * @param hasAppiumDependency - When true, the project depends on Appium. If that project package
+   * is itself an extension, it is recorded with the `"dev"` install type.
    * @returns `true` if any extension entries changed, `false` otherwise
    */
   async syncWithInstalledExtensions(hasAppiumDependency = false): Promise<boolean> {
     let didChange = false;
+    const seenPackageJsons = new Set<string>();
 
-    const onMatch = async (filepath: string, devType = false): Promise<void> => {
+    const onMatch = async (filepath: string, devType = false): Promise<unknown> => {
+      const claimed = await claimPackageJson(this.#appiumHome, filepath, seenPackageJsons);
+      if (!claimed) {
+        return undefined;
+      }
       try {
-        const pkg = JSON.parse(await fs.readFile(filepath, 'utf8')) as unknown;
+        const pkg = JSON.parse(await fs.readFile(claimed, 'utf8')) as unknown;
         if (isExtension(pkg)) {
           const installType = devType && hasAppiumDependency ? INSTALL_TYPE_DEV : INSTALL_TYPE_NPM;
-          const changed = this.addExtensionFromPackage(pkg, filepath, installType);
-          didChange = didChange || changed;
+          didChange = this.addExtensionFromPackage(pkg, claimed, installType) || didChange;
         }
+        return pkg;
       } catch {
         // ignore invalid package.json
+        return undefined;
       }
     };
 
-    const queue: Promise<void>[] = [onMatch(path.join(this.#appiumHome, 'package.json'), true)];
+    const rootPkg = await onMatch(path.join(this.#appiumHome, 'package.json'), true);
 
-    const filepaths = await fs.glob('node_modules/{*,@*/*}/package.json', {
-      cwd: this.#appiumHome,
-      absolute: true,
-    });
-    for (const filepath of filepaths) {
-      queue.push(onMatch(filepath));
+    const filepaths = [
+      ...(await fs.glob('node_modules/{*,@*/*}/package.json', {
+        cwd: this.#appiumHome,
+        absolute: true,
+      })),
+    ];
+    if (hasAppiumDependency) {
+      for (const depName of listProjectDependencyNames(rootPkg)) {
+        const depPackageJson = await findInstalledPackageJson(this.#appiumHome, depName);
+        if (depPackageJson) {
+          filepaths.push(depPackageJson);
+        }
+      }
     }
 
-    await Promise.all(queue);
+    await Promise.all(filepaths.map((filepath) => onMatch(filepath)));
 
     return didChange;
   }
@@ -361,4 +380,114 @@ function isPlugin(value: unknown): value is ExtPackageJson<PluginType> {
     'pluginName' in value.appium &&
     typeof (value.appium as {pluginName?: unknown}).pluginName === 'string'
   );
+}
+
+/**
+ * Dependency fields read when Appium is installed as a project dependency.
+ * Drivers and plugins declared here are loaded from wherever the package manager placed them.
+ */
+const PROJECT_DEPENDENCY_FIELDS = [
+  'dependencies',
+  'devDependencies',
+  'optionalDependencies',
+  'peerDependencies',
+] as const;
+
+/**
+ * Package names declared on a project `package.json`.
+ *
+ * @param pkg - Parsed `package.json`, or any other value (ignored)
+ * @returns Names safe to join onto a `node_modules` path
+ */
+function listProjectDependencyNames(pkg: unknown): string[] {
+  if (!util.isPlainObject(pkg)) {
+    return [];
+  }
+  const names = new Set<string>();
+  for (const field of PROJECT_DEPENDENCY_FIELDS) {
+    const deps = pkg[field];
+    if (!util.isPlainObject(deps)) {
+      continue;
+    }
+    for (const name of Object.keys(deps)) {
+      if (isDependencyPackageName(name)) {
+        names.add(name);
+      }
+    }
+  }
+  return [...names];
+}
+
+/**
+ * Whether `name` is an unscoped package or a single `@scope/name` segment.
+ *
+ * @param name - Key from a dependency map
+ */
+function isDependencyPackageName(name: string): boolean {
+  if (
+    name.length === 0 ||
+    name.startsWith('.') ||
+    name.startsWith('node:') ||
+    name.includes('\\') ||
+    name.includes('..')
+  ) {
+    return false;
+  }
+  const slash = name.indexOf('/');
+  if (slash === -1) {
+    return true;
+  }
+  return name.startsWith('@') && slash > 1 && slash < name.length - 1 && name.indexOf('/', slash + 1) === -1;
+}
+
+/**
+ * Finds `package.json` for `pkgName` by walking `node_modules` from `fromDir` up to the filesystem root.
+ *
+ * This is Node's lookup, so a dependency hoisted to a workspace root is visible from a nested package.
+ * Globbing only `$APPIUM_HOME/node_modules` misses that layout.
+ *
+ * @param fromDir - Project directory to start from (typically `APPIUM_HOME`)
+ * @param pkgName - Package name, possibly scoped
+ * @returns Absolute path to the installed `package.json`, or `undefined` when it is not installed
+ */
+async function findInstalledPackageJson(fromDir: string, pkgName: string): Promise<string | undefined> {
+  let dir = path.resolve(fromDir);
+  const fsRoot = path.parse(dir).root;
+  while (true) {
+    const candidate = path.join(dir, 'node_modules', pkgName, 'package.json');
+    if (await fs.exists(candidate)) {
+      return candidate;
+    }
+    if (dir === fsRoot) {
+      return undefined;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      return undefined;
+    }
+    dir = parent;
+  }
+}
+
+/**
+ * Reserves `filepath` so the same installed package is not registered twice.
+ *
+ * `package.json` paths reached through a symlink and through their real path share one slot.
+ * The first claimant wins, which prefers `$APPIUM_HOME/node_modules` over a hoisted copy.
+ *
+ * @returns Absolute path to read, or `undefined` when this package was already claimed
+ */
+async function claimPackageJson(appiumHome: string, filepath: string, seen: Set<string>): Promise<string | undefined> {
+  const resolved = path.isAbsolute(filepath) ? path.resolve(filepath) : path.resolve(appiumHome, filepath);
+  let key = resolved;
+  try {
+    key = await realpath(resolved);
+  } catch {
+    // Missing files still occupy a slot so a second bad path is not read again.
+  }
+  if (seen.has(key)) {
+    return undefined;
+  }
+  seen.add(key);
+  return resolved;
 }

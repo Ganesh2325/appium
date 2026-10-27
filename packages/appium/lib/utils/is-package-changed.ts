@@ -16,7 +16,7 @@ export interface IsPackageChangedResult {
 }
 
 /**
- * Detects whether `package.json` dependencies changed since the last hash write.
+ * Detects whether `package.json` dependency fields changed since the last hash write.
  * Inlined from the `package-changed` package (lockfile support omitted; unused by Appium).
  */
 export async function isPackageChanged(options: IsPackageChangedOptions = {}): Promise<IsPackageChangedResult> {
@@ -64,10 +64,16 @@ async function getPackageHash(packagePath: string): Promise<string> {
   const packageBlob = JSON.parse(contents) as {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
   };
+  // Keep every field extension discovery consults. Adding a field changes the digest, so an
+  // existing install rescans once after upgrade instead of keeping a stale manifest.
   const dependencies = {
     dependencies: packageBlob.dependencies ?? {},
     devDependencies: packageBlob.devDependencies ?? {},
+    optionalDependencies: packageBlob.optionalDependencies ?? {},
+    peerDependencies: packageBlob.peerDependencies ?? {},
   };
   const hashSum = crypto.createHash('md5');
   hashSum.update(Buffer.from(JSON.stringify(dependencies)));
