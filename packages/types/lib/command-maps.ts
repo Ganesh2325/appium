@@ -1,5 +1,6 @@
 import type {ConditionalPick, MultidimensionalReadonlyArray} from 'type-fest';
 
+import type {CheckedExecuteParams, CheckedPayload, FunctionParams, PluginPayloadStart} from './command-map-params';
 import type {Driver, DriverCommand} from './driver';
 import type {Plugin, PluginCommand} from './plugin';
 import type {StringRecord} from './util';
@@ -21,24 +22,55 @@ export interface PayloadParams {
  * Extensions can define new methods for the Appium server to map to command names, of the same
  * format as used in Appium's `routes.js`.
  *
+ * `required` and `optional` are checked against the command when `T` is a specific driver or plugin
+ * and the map is written with literal parameter lists (`as const satisfies MethodMap<MyDriver>` or an
+ * annotation). Parameters are passed **in order**: every `required` name must be a required function
+ * parameter, then every `optional` name must be optional (a `?` parameter, a parameter whose type
+ * includes `undefined`, or a parameter the function does not declare). Further parameters — usually
+ * URL parameters such as `elementId`, with `sessionId` last — are not checked. Plugin commands skip
+ * a leading `(next, driver)` pair when the method is declared that way.
+ *
+ * The check is skipped when `makeArgs` builds the argument list, when `required` is several
+ * alternative sets of different lengths, or when the command is a rest/`any[]` parameter list
+ * (optionality is not visible on those types). Overloaded commands are checked against the last
+ * overload. The base {@linkcode Driver} and {@linkcode Plugin} types are not checked, so a map for
+ * a concrete extension stays assignable to `MethodMap<Driver>` / `PluginClass`. {@linkcode AnyMethodMap}
+ * does not perform this check either; use it when merging maps from several extensions.
+ *
  * @example
- * ```js
- * {
- *   '/session/:sessionId/new_method': {
- *     GET: {command: 'getNewThing'},
- *     POST: {command: 'setNewThing', payloadParams: {required: ['someParam']}}
- *   }
- * }
+ * ```ts
+ * const newMethodMap = {
+ *   '/session/:sessionId/foo': {
+ *     POST: {
+ *       command: 'doFoo',
+ *       payloadParams: {required: ['a', 'b'], optional: ['c']},
+ *     },
+ *   },
+ * } as const satisfies MethodMap<MyDriver>;
+ *
+ * // required parameters first, then optional ones; URL params may follow
+ * async doFoo(a: string, b: string, c?: string) {}
  * ```
  */
 export type MethodMap<T extends Plugin | Driver> = T extends Plugin
-  ? Readonly<PluginMethodMap<T>>
+  ? CheckedOrLooseMethodMap<T, 'plugin'>
   : T extends Driver
-    ? Readonly<DriverMethodMap<T>>
+    ? CheckedOrLooseMethodMap<T, 'driver'>
     : never;
 
 /**
+ * Route table whose commands are not checked against a single extension.
+ *
+ * This is the merged `newMethodMap` passed to the Appium HTTP server. A {@linkcode MethodMap}
+ * for one driver or plugin is assignable to this type.
+ */
+export type AnyMethodMap = DriverMethodMap<Driver>;
+
+/**
  * A {@linkcode MethodMap} for a {@linkcode Driver}.
+ *
+ * This is the unchecked route shape (any command name, no parameter comparison). Authoring a map
+ * should use {@linkcode MethodMap}, which checks `required` and `optional`.
  */
 export interface DriverMethodMap<T extends Driver> {
   [key: string]: {
@@ -92,6 +124,9 @@ export interface PluginMethodDef<T extends Plugin> extends BaseMethodDef {
 
 /**
  * A mapping of URL paths to HTTP methods to {@linkcode PluginMethodDef}.
+ *
+ * Unlike {@linkcode MethodMap}, this type does not check `required` / `optional` against the
+ * command signature. Prefer {@linkcode MethodMap} when authoring an extension.
  */
 export interface PluginMethodMap<T extends Plugin> {
   [key: string]: {
@@ -100,6 +135,72 @@ export interface PluginMethodMap<T extends Plugin> {
     DELETE?: PluginMethodDef<T>;
   };
 }
+
+type CommandNames<T, Kind> = keyof ConditionalPick<Required<T>, Kind> & string;
+
+type CommandFn<T, K extends string> = K extends keyof T
+  ? NonNullable<Required<T>[K]> extends infer Fn
+    ? Fn extends (...args: any) => any
+      ? Fn
+      : never
+    : never
+  : never;
+
+type PayloadStart<T, Fn> = T extends Plugin ? PluginPayloadStart<FunctionParams<Fn>> : 0;
+
+type CheckedHttpDef<T, K extends string> = {
+  readonly command: K;
+  readonly payloadParams?: CheckedPayload<FunctionParams<CommandFn<T, K>>, PayloadStart<T, CommandFn<T, K>>>;
+  readonly neverProxy?: boolean;
+  readonly deprecated?: boolean;
+  readonly info?: string;
+};
+
+/** Route entry with no command name (`deprecated: true` removals, for example). */
+type BareHttpDef = {
+  readonly command?: undefined;
+  readonly payloadParams?: BaseMethodDef['payloadParams'];
+  readonly neverProxy?: boolean;
+  readonly deprecated?: boolean;
+  readonly info?: string;
+};
+
+type CheckedHttpUnion<T, Keys extends string> = {
+  [K in Keys]: CheckedHttpDef<T, K>;
+}[Keys];
+
+type CheckedMethodMap<T, Keys extends string> = {
+  readonly [route: string]: {
+    readonly GET?: BareHttpDef | CheckedHttpUnion<T, Keys>;
+    readonly POST?: BareHttpDef | CheckedHttpUnion<T, Keys>;
+    readonly DELETE?: BareHttpDef | CheckedHttpUnion<T, Keys>;
+  };
+};
+
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+type IsExact<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/**
+ * Skip the parameter check when command names are an open string index, when `T` is `any`, or when
+ * `T` is exactly the base {@linkcode Driver} or {@linkcode Plugin} (those slots must stay wide enough
+ * for every extension's map). A concrete driver or plugin is checked.
+ */
+type UseLooseCommandMap<T, Scope extends 'plugin' | 'driver'> =
+  IsAny<T> extends true
+    ? true
+    : string extends CommandNames<T, Scope extends 'plugin' ? PluginCommand : DriverCommand>
+      ? true
+      : Scope extends 'plugin'
+        ? IsExact<T, Plugin>
+        : IsExact<T, Driver>;
+
+type CheckedOrLooseMethodMap<T, Scope extends 'plugin' | 'driver'> =
+  UseLooseCommandMap<T, Scope> extends true
+    ? Scope extends 'plugin'
+      ? Readonly<PluginMethodMap<T & Plugin>>
+      : Readonly<DriverMethodMap<T & Driver>>
+    : CheckedMethodMap<T, CommandNames<T, Scope extends 'plugin' ? PluginCommand : DriverCommand>>;
 
 export interface ExecuteMethodDef<Ext extends Plugin | Driver> {
   command: keyof ConditionalPick<
@@ -112,6 +213,12 @@ export interface ExecuteMethodDef<Ext extends Plugin | Driver> {
  * Properties shared by execute method definitions in both plugins and drivers
  */
 export interface BaseExecuteMethodDef {
+  /**
+   * Execute-script arguments.
+   *
+   * When this definition is part of an {@linkcode ExecuteMethodMap}, `required` and `optional`
+   * are checked against the command in order (see {@linkcode MethodMap}).
+   */
   params?: {
     required?: ReadonlyArray<string>;
     optional?: ReadonlyArray<string>;
@@ -142,13 +249,51 @@ export interface PluginExecuteMethodDef<T extends Plugin> extends BaseExecuteMet
   command: keyof ConditionalPick<T, PluginCommand>;
 }
 
+type CheckedExecuteDef<T, K extends string> = {
+  readonly command: K;
+  readonly params?: CheckedExecuteParams<FunctionParams<CommandFn<T, K>>, PayloadStart<T, CommandFn<T, K>>>;
+  readonly deprecated?: boolean;
+  readonly info?: string;
+};
+
+type CheckedExecuteMap<T, Keys extends string> = {
+  readonly [script: string]: {
+    [K in Keys]: CheckedExecuteDef<T, K>;
+  }[Keys];
+};
+
+type LooseExecuteMap<T> = T extends Plugin
+  ? Readonly<StringRecord<PluginExecuteMethodDef<T>>>
+  : Readonly<StringRecord<DriverExecuteMethodDef<T & Driver>>>;
+
 /**
  * Definition of an execute method (which overloads the behavior of the `execute` command) in a {@linkcode Driver} or {@linkcode Plugin}.
+ *
+ * `params.required` and `params.optional` are checked against the command the same way as
+ * {@linkcode MethodMap}: required names first, then optional names. There are no URL parameters.
+ * Plugin commands skip a leading `(next, driver)` pair when the method is declared that way.
+ *
+ * @example
+ * ```ts
+ * const executeMethodMap = {
+ *   'sample: foo': {
+ *     command: 'doFoo',
+ *     params: {required: ['a', 'b'], optional: ['c']},
+ *   },
+ * } as const satisfies ExecuteMethodMap<MyDriver>;
+ *
+ * async doFoo(a: string, b: string, c?: string) {}
+ * // async doFoo(a: string, b: string, c: string) {} // error: `c` is optional in the map
+ * ```
  */
 export type ExecuteMethodMap<T extends Plugin | Driver> = T extends Plugin
-  ? Readonly<StringRecord<PluginExecuteMethodDef<T>>>
+  ? UseLooseCommandMap<T, 'plugin'> extends true
+    ? LooseExecuteMap<T>
+    : CheckedExecuteMap<T, CommandNames<T, PluginCommand>>
   : T extends Driver
-    ? Readonly<StringRecord<DriverExecuteMethodDef<T>>>
+    ? UseLooseCommandMap<T, 'driver'> extends true
+      ? LooseExecuteMap<T>
+      : CheckedExecuteMap<T, CommandNames<T, DriverCommand>>
     : never;
 
 export interface BidiMethodParams {

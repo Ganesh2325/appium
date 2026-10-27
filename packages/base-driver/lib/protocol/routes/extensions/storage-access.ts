@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Storage Access.
@@ -8,4 +10,4 @@ export const STORAGE_ACCESS_ROUTES = {
   '/session/:sessionId/storageaccess': {
     POST: {command: 'setStorageAccess', payloadParams: {required: ['blocked', 'origin']}},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

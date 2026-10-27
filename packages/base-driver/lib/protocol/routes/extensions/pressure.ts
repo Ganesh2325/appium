@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Compute Pressure.
@@ -15,4 +17,4 @@ export const PRESSURE_ROUTES = {
     POST: {command: 'updateVirtualPressureSource', payloadParams: {required: ['sample']}},
     DELETE: {command: 'deleteVirtualPressureSource'},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

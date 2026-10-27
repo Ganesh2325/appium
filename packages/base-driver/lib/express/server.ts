@@ -5,14 +5,7 @@ import {createRequire} from 'node:module';
 // Import env helper directly — not from the test-pages barrel — so Express handlers and
 // fixture code stay unloaded unless APPIUM_ENABLE_LEGACY_TEST_PAGES is set.
 import {fs, timing} from '@appium/support';
-import type {
-  AppiumServer,
-  ExternalDriver,
-  MethodMap,
-  ServerArgs,
-  StringRecord,
-  UpdateServerCallback,
-} from '@appium/types';
+import type {AnyMethodMap, AppiumServer, ServerArgs, StringRecord, UpdateServerCallback} from '@appium/types';
 import bodyParser from 'body-parser';
 import express from 'express';
 import type {Express, RequestHandler, Router} from 'express';
@@ -45,7 +38,7 @@ const KEEP_ALIVE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 /** Options for {@linkcode RouteConfiguringFunction} */
 export interface RouteConfiguringFunctionOpts {
   basePath?: string;
-  extraMethodMap?: MethodMap<ExternalDriver>;
+  extraMethodMap?: AnyMethodMap;
 }
 
 /** A function which configures routes */
@@ -59,7 +52,7 @@ export interface ServerOpts {
   hostname?: string;
   allowCors?: boolean;
   basePath?: string;
-  extraMethodMap?: MethodMap<ExternalDriver>;
+  extraMethodMap?: AnyMethodMap;
   serverUpdaters?: UpdateServerCallback[];
   keepAliveTimeout?: number;
   requestTimeout?: number;
@@ -71,7 +64,7 @@ export interface ConfigureServerOpts {
   addRoutes: RouteConfiguringFunction;
   allowCors?: boolean;
   basePath?: string;
-  extraMethodMap?: MethodMap<ExternalDriver>;
+  extraMethodMap?: AnyMethodMap;
   webSocketsMapping?: StringRecord;
   useLegacyUpgradeHandler?: boolean;
   /** Router mounted before any route is registered; see {@linkcode AppiumServer.frontRouter}. */

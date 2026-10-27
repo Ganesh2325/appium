@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Federated Credential Management (FedCM).
@@ -29,4 +31,4 @@ export const FEDCM_ROUTES = {
   '/session/:sessionId/fedcm/resetcooldown': {
     POST: {command: 'fedCMResetCooldown'},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

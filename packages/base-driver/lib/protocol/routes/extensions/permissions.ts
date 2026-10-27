@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Permissions.
@@ -8,4 +10,4 @@ export const PERMISSIONS_ROUTES = {
   '/session/:sessionId/permissions': {
     POST: {command: 'setPermissions', payloadParams: {required: ['descriptor', 'state']}},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Secure Payment Confirmation.
@@ -8,4 +10,4 @@ export const PAYMENT_ROUTES = {
   '/session/:sessionId/secure-payment-confirmation/set-mode': {
     POST: {command: 'setSPCTransactionMode', payloadParams: {required: ['mode']}},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from './protocol-driver';
 
 /**
  * Appium-specific routes: sessions, capabilities, settings, and command/extension
@@ -37,4 +39,4 @@ export const APPIUM_ROUTES = {
       payloadParams: {required: ['vendor', 'event']},
     },
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

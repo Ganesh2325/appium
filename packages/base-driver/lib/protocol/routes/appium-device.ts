@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from './protocol-driver';
 
 /**
  * Appium: Device interaction (apps, keyboard, files, clock).
@@ -89,4 +91,4 @@ export const APPIUM_DEVICE_ROUTES = {
   '/session/:sessionId/appium/device/pull_folder': {
     POST: {command: 'pullFolder', payloadParams: {required: ['path']}},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

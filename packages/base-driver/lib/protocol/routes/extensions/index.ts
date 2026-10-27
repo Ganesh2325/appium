@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 import {CHROMIUM_CDP_ROUTES} from './chromium-cdp';
 import {CUSTOM_HANDLERS_ROUTES} from './custom-handlers';
@@ -33,4 +35,4 @@ export const EXTENSION_ROUTES = {
   ...CHROMIUM_CDP_ROUTES,
   ...CUSTOM_HANDLERS_ROUTES,
   ...STORAGE_ACCESS_ROUTES,
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

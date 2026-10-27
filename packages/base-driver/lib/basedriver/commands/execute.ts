@@ -18,8 +18,10 @@ const ExecuteCommands = {
     protoArgs: readonly [StringRecord<unknown>] | readonly unknown[],
   ) {
     const Driver = this.constructor as DriverClass<Driver<C>>;
-    const commandMetadata = {...Driver.executeMethodMap?.[script]};
-    if (!commandMetadata.command) {
+    // Do not spread this lookup. `ExecuteMethodMap` values are a union of per-command
+    // definitions, and spreading a union that may be missing collapses to `{}`.
+    const commandMetadata = Driver.executeMethodMap?.[script];
+    if (!commandMetadata?.command) {
       const availableScripts = Object.keys(Driver.executeMethodMap ?? {});
       if (util.isEmpty(availableScripts)) {
         throw new errors.UnsupportedOperationError(

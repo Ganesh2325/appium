@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Chromium devtools protocol passthrough.
@@ -8,4 +10,4 @@ export const CHROMIUM_CDP_ROUTES = {
   '/session/:sessionId/:vendor/cdp/execute': {
     POST: {command: 'executeCdp', payloadParams: {required: ['cmd', 'params']}},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

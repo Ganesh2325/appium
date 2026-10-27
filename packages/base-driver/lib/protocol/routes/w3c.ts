@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from './protocol-driver';
 
 /**
  * Standard W3C WebDriver routes.
@@ -250,4 +252,4 @@ export const W3C_ROUTES = {
       },
     },
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

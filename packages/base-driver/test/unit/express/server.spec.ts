@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {afterEach, before, beforeEach, describe, it} from 'node:test';
 
 import {getTestPort} from '@appium/driver-test-support';
-import type {Driver, MethodMap} from '@appium/types';
+import type {AnyMethodMap} from '@appium/types';
 import {createSandbox} from 'sinon';
 
 import {configureServer, normalizeBasePath, server} from '../../../lib/express/server';
@@ -17,7 +17,7 @@ const newMethodMap = {
     GET: {command: 'fakeGet'},
     POST: {command: 'fakePost', payloadParams: {required: ['fakeParam']}},
   },
-} as MethodMap<Driver>;
+} as AnyMethodMap;
 
 const updateServer = async (app: any, httpServer: any) => {
   app.updated = true;
