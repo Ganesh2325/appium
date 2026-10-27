@@ -1,5 +1,5 @@
 import {logger, util} from '@appium/support';
-import type {AppiumLogger, Core, Driver, DriverMethodDef, MethodMap, PayloadParams} from '@appium/types';
+import type {AnyMethodMap, AppiumLogger, Core, Driver, DriverMethodDef, PayloadParams} from '@appium/types';
 import type {Application, Request, Response} from 'express';
 import type {MultidimensionalReadonlyArray} from 'type-fest';
 
@@ -271,7 +271,7 @@ export function routeConfiguringFunction(driver: Core<any>): RouteConfiguringFun
     // for example in determining proxy avoidance
     driver.basePath = basePath;
 
-    const allMethods: MethodMap<Driver> = {...METHOD_MAP, ...extraMethodMap};
+    const allMethods: AnyMethodMap = {...METHOD_MAP, ...extraMethodMap};
     for (const [path, methods] of Object.entries(allMethods)) {
       for (const [method, spec] of Object.entries(methods)) {
         const isSessCommand = spec.command ? isSessionCommand(spec.command) : false;

@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Generic Sensor.
@@ -19,4 +21,4 @@ export const SENSOR_ROUTES = {
     POST: {command: 'updateVirtualSensorReading', payloadParams: {required: ['reading']}},
     DELETE: {command: 'deleteVirtualSensor'},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

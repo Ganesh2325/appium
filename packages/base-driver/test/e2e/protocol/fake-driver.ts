@@ -3,6 +3,7 @@ import type {
   Constraints,
   DefaultCreateSessionResult,
   InitialOpts,
+  MethodMap,
   RouteMatcher,
   SingularSessionData,
   StringRecord,
@@ -17,7 +18,7 @@ class FakeDriver extends BaseDriver<Constraints> {
     '/session/:sessionId/noproxy': {
       GET: {command: 'notProxiedCommand', neverProxy: true},
     },
-  };
+  } as const satisfies MethodMap<FakeDriver>;
 
   declare wdProxyActive: boolean;
 

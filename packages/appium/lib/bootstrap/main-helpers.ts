@@ -8,7 +8,7 @@ import {
   type ServerOpts,
 } from '@appium/base-driver';
 import {console as supportConsole, util} from '@appium/support';
-import type {AppiumServer, Driver, MethodMap, UpdateServerCallback} from '@appium/types';
+import type {AnyMethodMap, AppiumServer, UpdateServerCallback} from '@appium/types';
 import type {Args, CliCommandServer, ParsedArgs} from 'appium/types';
 import {WebSocketServer} from 'ws';
 
@@ -149,8 +149,8 @@ export function getServerUpdaters(driverClasses: DriverNameMap, pluginClasses: P
 /**
  * Merges `newMethodMap` contributions from all active drivers and plugins into one method map.
  */
-export function getExtraMethodMap(driverClasses: DriverNameMap, pluginClasses: PluginNameMap): MethodMap<Driver> {
-  return [...driverClasses.keys(), ...pluginClasses.keys()].reduce<MethodMap<Driver>>(
+export function getExtraMethodMap(driverClasses: DriverNameMap, pluginClasses: PluginNameMap): AnyMethodMap {
+  return [...driverClasses.keys(), ...pluginClasses.keys()].reduce<AnyMethodMap>(
     (map, klass) => ({
       ...map,
       ...(klass.newMethodMap ?? {}),

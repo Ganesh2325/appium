@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Reporting API: test report generation.
@@ -11,4 +13,4 @@ export const REPORTING_ROUTES = {
       payloadParams: {required: ['message'], optional: ['group']},
     },
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

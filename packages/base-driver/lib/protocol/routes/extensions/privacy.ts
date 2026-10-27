@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from '../protocol-driver';
 
 /**
  * Global Privacy Control (GPC).
@@ -9,4 +11,4 @@ export const PRIVACY_ROUTES = {
     GET: {command: 'getGlobalPrivacyControl'},
     POST: {command: 'setGlobalPrivacyControl', payloadParams: {required: ['gpc']}},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

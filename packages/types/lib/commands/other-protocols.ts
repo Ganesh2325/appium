@@ -266,16 +266,17 @@ export interface IOtherProtocolCommands {
    * credential
    * @param rpId - the relying party ID the credential is scoped to
    * @param privateKey - the base64 encoded private key package
-   * @param userHandle - the base64 encoded user handle
-   * @param signCount - the initial value for a signature counter
+   * @param userHandle - the base64 encoded user handle. `undefined` when the client omits it
+   * @param signCount - the initial value for a signature counter. `undefined` when the client omits it
+   * @param authenticatorId - id of the virtual authenticator, taken from the URL
    */
   addAuthCredential?(
     credentialId: string,
     isResidentCredential: boolean,
     rpId: string,
     privateKey: string,
-    userHandle: string,
-    signCount: number,
+    userHandle: string | undefined,
+    signCount: number | undefined,
     authenticatorId: string,
   ): Promise<void>;
 

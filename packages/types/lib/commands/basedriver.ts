@@ -325,9 +325,12 @@ export interface ISettingsCommands<T extends object = object> {
  *
  * @deprecated Use the single-argument overload of {@linkcode ISessionHandler.createSession}
  * instead.
+ *
+ * Any element may be omitted. The new-session route lists `capabilities` as optional and repeats
+ * it three times; the implementation uses the first value that is a W3C capabilities object.
  */
 export type LegacyCreateSessionArgs<C extends Constraints> = [
-  w3cCaps1: W3CDriverCaps<C>,
+  w3cCaps1?: W3CDriverCaps<C>,
   w3cCaps2?: W3CDriverCaps<C>,
   w3cCaps3?: W3CDriverCaps<C>,
   driverData?: DriverData[],

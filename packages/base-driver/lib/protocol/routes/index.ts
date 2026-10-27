@@ -9,6 +9,7 @@ import {APPIUM_DEVICE_ROUTES} from './appium-device';
 import {EXTENSION_ROUTES} from './extensions';
 import {JSONWP_ROUTES} from './jsonwp';
 import {MJSONWP_ROUTES} from './mjsonwp';
+import type {ProtocolDriver} from './protocol-driver';
 import {W3C_ROUTES} from './w3c';
 
 const COMMAND_NAMES_CACHE = new LRUCache<string, string>({
@@ -29,7 +30,7 @@ export const METHOD_MAP = {
   ...APPIUM_ROUTES,
   ...APPIUM_DEVICE_ROUTES,
   ...EXTENSION_ROUTES,
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;
 
 // driver command names
 export const ALL_COMMANDS = Object.values(METHOD_MAP)

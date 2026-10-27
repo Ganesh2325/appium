@@ -1,4 +1,6 @@
-import type {Driver, MethodMap} from '@appium/types';
+import type {MethodMap} from '@appium/types';
+
+import type {ProtocolDriver} from './protocol-driver';
 
 /**
  * JSONWP (legacy) routes.
@@ -53,4 +55,4 @@ export const JSONWP_ROUTES = {
   '/session/:sessionId/element/:elementId': {
     GET: {deprecated: true},
   },
-} as const satisfies MethodMap<Driver>;
+} as const satisfies MethodMap<ProtocolDriver>;

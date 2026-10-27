@@ -126,6 +126,8 @@ export interface IWDClassicCommands {
    * Set the current window's size and position
    * @see {@link https://w3c.github.io/webdriver/#set-window-rect}
    *
+   * Every parameter is optional; omitted fields leave that part of the rect unchanged.
+   *
    * @param x - the screen coordinate for the new left edge of the window
    * @param y - the screen coordinate for the new top edge of the window
    * @param width - the width in pixels to resize the window to
@@ -133,7 +135,7 @@ export interface IWDClassicCommands {
    *
    * @returns The actual `Rect` of the window after running the command
    */
-  setWindowRect?(x: number, y: number, width: number, height: number): Promise<Rect>;
+  setWindowRect?(x?: number, y?: number, width?: number, height?: number): Promise<Rect>;
 
   /**
    * Run the window-manager specific 'maximize' operation on the current window
